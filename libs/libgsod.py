@@ -45,6 +45,7 @@ def _get_prcp_from_gsod(gsodfilename):
                        )
     data.index.name = "DATE"
     data.columns = ["PRCP_GSOD"]
+    data.re
     data["PRCP_GSOD"] *= 25.4
     return data
 

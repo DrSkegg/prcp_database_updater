@@ -119,23 +119,28 @@ def gamma_filter_borders (mean_std_file, prob=0.995, max_prcp = 2000.):
 
 
 
+
 def gamma_filter (indir, mean_std_dir, outdir, prob=0.995, max_prcp = 2000.):
     print ("Filtering PRCP joint data")
     os.makedirs(outdir, exist_ok=bool)
     for infile in tqdm (sorted (glob (op.join (indir, "*"))), colour='BLUE'):
         wmo = op.basename(infile)
-        with np.errstate(invalid='ignore'):
-          bounds = gamma_filter_borders(op.join(mean_std_dir, wmo) , prob, max_prcp)
-
         data = pd.read_csv(infile)
-        data ["MD"] = data["DATE"].str[5:]
-        data = data.merge(bounds, on="MD")
-        data.iloc[:, 1:-2] = np.where(((data.iloc[:, 1:-2].values <= data["BOUNDS"].values.reshape(-1,1)) &
-                                       (data.iloc[:, 1:-2].values >=0) )   ,
-                                       np.abs(data.iloc[:, 1:-2].values), np.nan )
+        try:
+            with np.errstate(invalid='ignore'):
+              bounds = gamma_filter_borders(op.join(mean_std_dir, wmo) , prob, max_prcp)
 
 
-        data.iloc[:, :-2].to_csv (op.join(outdir, wmo), index=False)
+            data ["MD"] = data["DATE"].str[5:10]
+            data = data.merge(bounds, on="MD")
+            data.iloc[:, 1:-2] = np.where(((data.iloc[:, 1:-2].values <= data["BOUNDS"].values.reshape(-1,1)) &
+                                           (data.iloc[:, 1:-2].values >=0) )   ,
+                                           np.abs(data.iloc[:, 1:-2].values), np.nan )
+
+            outdata = data.iloc[:, :-2]
+        except Exception:
+            outdata = data
+        outdata.to_csv (op.join(outdir, wmo), index=False)
 
 
     return op.abspath(outdir)
