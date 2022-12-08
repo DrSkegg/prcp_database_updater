@@ -139,7 +139,8 @@ def gamma_filter (indir, mean_std_dir, outdir, prob=0.995, max_prcp = 2000.):
 
             outdata = data.iloc[:, :-2]
         except Exception:
-            outdata = data
+            outdata = np.where(data.iloc[:, 1:-2].values >=0  ,
+                                           np.abs(data.iloc[:, 1:-2].values), np.nan )
         outdata.to_csv (op.join(outdir, wmo), index=False)
 
 
