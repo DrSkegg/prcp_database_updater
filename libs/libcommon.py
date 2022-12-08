@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 import sys
 import ftplib
 import os.path as op
@@ -108,12 +111,13 @@ def join_sources(prcp_source_dirs, year, outdir, months, stations_list_file):
 
 def gamma_filter_borders (mean_std_file, prob=0.995, max_prcp = 2000.):
     mean_std= pd.read_csv(mean_std_file)
-    a = (mean_std["PRCP_MEAN"] ** 2) / (mean_std["PRCP_STD"] ** 2)
-    scale = (mean_std["PRCP_STD"] ** 2) / mean_std["PRCP_MEAN"]
-    bounds = gamma.ppf(q=prob, a=a, scale=scale, loc=0)
-    nan_index = np.isnan(bounds)
-    bounds[nan_index] = np.inf
-    bounds = np.where (  bounds <  max_prcp, bounds, max_prcp)
+    with np.errstate(invalid='ignore'):
+        a = (mean_std["PRCP_MEAN"] ** 2) / (mean_std["PRCP_STD"] ** 2)
+        scale = (mean_std["PRCP_STD"] ** 2) / mean_std["PRCP_MEAN"]
+        bounds = gamma.ppf(q=prob, a=a, scale=scale, loc=0)
+        nan_index = np.isnan(bounds)
+        bounds[nan_index] = np.inf
+        bounds = np.where (  bounds <  max_prcp, bounds, max_prcp)
     return pd.DataFrame(bounds, index=mean_std["MD"], columns=["BOUNDS"])
 
 
@@ -127,8 +131,8 @@ def gamma_filter (indir, mean_std_dir, outdir, prob=0.995, max_prcp = 2000.):
         wmo = op.basename(infile)
         data = pd.read_csv(infile)
         try:
-            with np.errstate(invalid='ignore'):
-              bounds = gamma_filter_borders(op.join(mean_std_dir, wmo) , prob, max_prcp)
+            # with np.errstate(invalid='ignore'):
+            bounds = gamma_filter_borders(op.join(mean_std_dir, wmo) , prob, max_prcp)
 
 
             data ["MD"] = data["DATE"].str[5:10]
@@ -139,8 +143,9 @@ def gamma_filter (indir, mean_std_dir, outdir, prob=0.995, max_prcp = 2000.):
 
             outdata = data.iloc[:, :-2]
         except Exception:
-            outdata = np.where(data.iloc[:, 1:-2].values >=0  ,
-                                           np.abs(data.iloc[:, 1:-2].values), np.nan )
+            outdata = data
+            outdata.iloc[:,1:] = np.where(data.iloc[:, 1:].values >=0  ,
+                                           np.abs(data.iloc[:, 1:].values), np.nan )
         outdata.to_csv (op.join(outdir, wmo), index=False)
 
 
@@ -213,6 +218,9 @@ def final_month_output (indir, outdir, year):
     all_data = pd.concat(all_data, axis=1)
 
     print ("Writing final month PRCP files")
+
+    all_data = all_data.copy()
+
     all_data["Y"] = data.index.year
     all_data["M"] = data.index.month
     all_data["D"] = data.index.day
