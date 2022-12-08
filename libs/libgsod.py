@@ -40,12 +40,16 @@ def _get_prcp_from_gsod(gsodfilename):
     data = pd.read_fwf(gsodfilename,
                        colspecs=[(14, 22), (118, 123)],
                        parse_dates=["YEARMODA"],
-                       index_col=["YEARMODA"],
+                       # index_col=["YEARMODA"],
                        na_values=99.99
                        )
+
+    data = data.drop_duplicates(subset=["YEARMODA"], keep="first").set_index ("YEARMODA")
+
+
     data.index.name = "DATE"
     data.columns = ["PRCP_GSOD"]
-    data.re
+
     data["PRCP_GSOD"] *= 25.4
     return data
 
